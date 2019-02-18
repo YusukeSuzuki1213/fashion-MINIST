@@ -6,7 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def print_cmx(y_true, y_pred):
-    class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']  
     y_label = 'True label'
     x_label = 'Predicted label'
     title = 'Counfusion Matrix - Fashion MNIST test data'
@@ -16,11 +15,11 @@ def print_cmx(y_true, y_pred):
 
     plt.title(title)
     plt.colorbar()
-    tick_marks = np.arange(len(class_names))
-    plt.xticks(tick_marks, class_names, rotation=45)
-    plt.yticks(tick_marks, class_names)
-    for i in range(len(class_names)):
-        for j in range(len(class_names)):
+    tick_marks = np.arange(len(CLASS_NAMES))
+    plt.xticks(tick_marks, CLASS_NAMES, rotation=45)
+    plt.yticks(tick_marks, CLASS_NAMES)
+    for i in range(len(CLASS_NAMES)):
+        for j in range(len(CLASS_NAMES)):
             plt.text(j,i, str(cm[i][j]), horizontalalignment="center")
     plt.tight_layout()
     plt.ylabel(y_label)
@@ -28,15 +27,39 @@ def print_cmx(y_true, y_pred):
     ax = plt.gca() # get current axis
     ax.grid(False) 
     plt.savefig(save_path)
+    
+def print_acc(fit):
+    plt.plot(fit.history['acc'])
+    plt.plot(fit.history['val_acc'])
+    plt.title('model accuracy')
+    plt.ylabel('accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['training accuracy', 'validation accuracy'], loc='upper left')
+    plt.show()
 
+def print_loss(fit):
+  plt.plot(fit.history['loss'])
+  plt.plot(fit.history['val_loss'])
+  plt.title('model loss')
+  plt.ylabel('loss')
+  plt.xlabel('epoch')
+  plt.legend(['training loss', 'validation loss'], loc='upper right')
+  plt.show()
 
-"""
-データセットを取得
-x_train: 学習画像データ(60000枚)
-y_train: 学習画像データのラベル
-x_test:  テスト画像データ(10000枚)
-y_test:  テスト画像データのラベル
-"""
+def print_rand_sample(x_test, y_test, y_test_pred):
+    w_num = 5
+    h_num = 5
+    figure = plt.figure(figsize=(20, 8))
+    plt.subplots_adjust(wspace=0.4, hspace=0.8)
+    for i, index in enumerate(np.random.choice(x_test.shape[0], size=w_num * h_num, replace=False)):
+        ax = figure.add_subplot(h_num, w_num, i + 1, xticks=[], yticks=[])
+        ax.imshow(np.squeeze(x_test[index]))
+        pred_index = np.argmax(y_test_pred[index])
+        true_index = np.argmax(y_test[index])
+        ax.set_title("predict:[{}], true:[{}]".format(CLASS_NAMES[pred_index], CLASS_NAMES[true_index]), color=("green" if pred_index == true_index else "red"))
+
+        
+CLASS_NAMES = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']  
 (x_train, y_train), (x_test, y_test) = keras.datasets.fashion_mnist.load_data()
 
 # min-max 正規化(データ画像の画素の値を[0,1]に収める)
@@ -59,7 +82,6 @@ x_test  = x_test.reshape(x_test.shape[0], width, height, 1)
 y_train = keras.utils.to_categorical(y_train, 10)
 y_valid = keras.utils.to_categorical(y_valid, 10)
 y_test  = keras.utils.to_categorical(y_test, 10)
-
 
 #モデルの構築
 model = keras.Sequential()
@@ -84,30 +106,25 @@ model.add(keras.layers.Dense(10, activation='softmax'))
 model.summary()
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 # 各エポック終了後にモデルを保存(一番val_lossが少ないものを保存する)
+epochs = 2
+batch_size=64
 checkpointer = keras.callbacks.ModelCheckpoint(filepath='model.weights.best.hdf5', monitor='val_loss', verbose=1, save_best_only=True, period=1)
-model.fit(x_train, y_train, batch_size=64, epochs=1, verbose=2, validation_data=(x_valid, y_valid),callbacks=[checkpointer])
+fit = model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=2, validation_data=(x_valid, y_valid),callbacks=[checkpointer])
 
 
 # 評価
 model.load_weights('model.weights.best.hdf5')
 score = model.evaluate(x_test, y_test, verbose=1)
-
 y_test_pred = model.predict(x_test)
-print_cmx(np.argmax(y_test, axis = 1), np.argmax(y_test_pred, axis = 1))
+
+# 結果等表示
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
+print_acc(fit)
+print_loss(fit)
+print_cmx(np.argmax(y_test, axis = 1), np.argmax(y_test_pred, axis = 1))
+print_rand_sample(x_test, y_test, y_test_pred)
 
-# # Plot a random sample of 10 test images, their predicted labels and ground truth
-# figure = plt.figure(figsize=(20, 8))
-# for i, index in enumerate(np.random.choice(x_test.shape[0], size=15, replace=False)):
-#     ax = figure.add_subplot(3, 5, i + 1, xticks=[], yticks=[])
-#     # Display each image
-#     ax.imshow(np.squeeze(x_test[index]))
-#     predict_index = np.argmax(y_hat[index])
-#     true_index = np.argmax(y_test[index])
-#     # Set the title for each image
-#     ax.set_title("{} ({})".format(fashion_mnist_labels[predict_index], 
-#                                   fashion_mnist_labels[true_index]),
-#                                   color=("green" if predict_index == true_index else "red"))
+
 
 
